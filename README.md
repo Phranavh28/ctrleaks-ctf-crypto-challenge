@@ -28,21 +28,21 @@ The challenge consisted of 3 stages:
 ctrleaks-ctf-crypto-challenge/
 │
 ├── docs/
-│   └── CTRLeaks_CTF_Challenge_Phranavh.pdf   # Full write-up
+│ └── CTRLeaks_CTF_Challenge_Phranavh.pdf # Full write-up
 │
 ├── python/
-│   ├── clue1.py          # AES-ECB brute-force
-│   ├── clue2.py          # CBC IV extraction
-│   ├── clue3.py          # Basic CTR brute-force
-│   └── Clue-3.1.py       # Optimized CTR brute-force
+│ ├── clue1.py # AES-ECB brute-force
+│ ├── clue2.py # CBC IV extraction
+│ ├── clue3.py # Basic CTR brute-force
+│ └── Clue-3.1.py # Optimized CTR brute-force
 │
 ├── r/
-│   └── ctrleaks_solution.Rmd   # R Markdown for ECB & CBC analysis
+│ └── ctrleaks_solution.Rmd # R Markdown for ECB & CBC analysis
 │
 ├── java/
-│   └── Flag3_Java.java   # Multithreaded AES-CTR brute-force
+│ └── Flag3_Java.java # Multithreaded AES-CTR brute-force
 │
-├── README.md             # Project overview
+├── README.md # Project overview
 
 ## 🧰 Tools & Languages
 
