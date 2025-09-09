@@ -1,0 +1,132 @@
+
+---
+title: "CTRLeaks Challenge Solution"
+author: "S4073190"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages("Crypto", repos = "http://cran.us.r-project.org")
+library(digest)
+```
+
+## 🔐 Flag 1: Recovering AES Key K2
+
+We brute-force the key `"adminpasswordXXX"` using AES-ECB mode and known plaintext/ciphertext.
+
+```{r flag1}
+convertToAESState <- function(p) {
+  p_raw <- charToRaw(p)
+  numOfBlocks <- round(length(p_raw)/16, 0) + 1
+  padLength <- (numOfBlocks * 16) - length(p_raw)
+  pad <- rep(charToRaw(" "), times=padLength)
+  c(p_raw, pad)
+}
+
+convertHexStrToRaw <- function(hex_str) {
+  str_bytes <- substring(hex_str, seq(1, nchar(hex_str), 2), seq(2, nchar(hex_str), 2))
+  as.raw(strtoi(str_bytes, 16L))
+}
+
+plaintext3 <- "overcompensation"
+ciphertext3_hex <- "1f48519a4919974403aca16eff94c0a6"
+ciphertext3_raw <- convertHexStrToRaw(ciphertext3_hex)
+
+flag1 <- NULL
+for (i in 0:999) {
+  suffix <- sprintf("%03d", i)
+  key_candidate <- paste0("adminpassword", suffix)
+  key_raw <- charToRaw(key_candidate)
+
+  aes_ecb <- AES(key_raw, mode="ECB")
+  pt_raw <- convertToAESState(plaintext3)
+  ct_raw <- aes_ecb$encrypt(pt_raw)
+
+  if (all(ct_raw[1:16] == ciphertext3_raw)) {
+    flag1 <- key_candidate
+    break
+  }
+}
+
+paste("Flag 1: flag{", flag1, "}", sep = "")
+```
+
+## 🧬 Flag 2: Recovering the Reused IV
+
+We use CBC decryption and XOR with known plaintext to recover the IV.
+
+```{r flag2}
+plaintext2 <- "photorealistically"
+plaintext_block <- substr(plaintext2, 1, 16)
+p_raw <- charToRaw(plaintext_block)
+
+ciphertext2_hex_block1 <- substr("12a6ca55c182bcac8f91dcbcfd633e170afdd0d02744ffe386c09b03473b41c9", 1, 32)
+c_raw <- convertHexStrToRaw(ciphertext2_hex_block1)
+
+key2_raw <- charToRaw(flag1)
+aes_ecb <- AES(key2_raw, mode="ECB")
+dec_block <- aes_ecb$decrypt(c_raw, raw=TRUE)
+
+iv_raw <- as.raw(bitwXor(as.integer(dec_block), as.integer(p_raw)))
+iv_ascii <- rawToChar(iv_raw)
+
+paste("Flag 2: flag{", iv_ascii, "}", sep = "")
+```
+
+## 🔓 Flag 3: Decrypting the CTR Encrypted Message
+
+We derive the AES key from student number and decrypt using AES-CTR mode.
+
+```{r flag3}
+library(digest)
+
+# Convert hex ciphertext to raw bytes
+convertHexStrToRaw <- function(hex_str) {
+  str_bytes <- substring(hex_str, seq(1, nchar(hex_str), 2), seq(2, nchar(hex_str), 2))
+  as.raw(strtoi(str_bytes, 16L))
+}
+
+# Ciphertext
+cipher_hex <- "ab907cabf50a372037e25c7fabeae44c72badb30e073c5ea1b42e1ddd73f9ca5707151d5354c4e54a5e5de94d3818580"
+cipher_raw <- convertHexStrToRaw(cipher_hex)
+
+# Load password list (rockyou.txt)
+passwords <- readLines("/Users/phranavh/Desktop/untitled folder 3/rockyou.txt", warn = FALSE)[1:10000]
+
+# Brute-force loop
+for (pwd in passwords) {
+  # Skip if not ASCII
+  if (any(charToRaw(iconv(pwd, to = "ASCII", sub = "byte")) > as.raw(0x7E))) next
+  
+  # Pad or truncate to 16 bytes
+  key_str <- if (nchar(pwd) < 16) sprintf("%-16s", pwd) else substr(pwd, 1, 16)
+  key_raw <- charToRaw(key_str)
+  
+  # Skip if not exactly 16 bytes
+  if (length(key_raw) != 16) next
+  
+  # Try decrypting
+  result <- tryCatch({
+    aes_ecb <- AES(key_raw, mode = "ECB")
+    decrypted <- aes_ecb$decrypt(cipher_raw, raw = TRUE)
+    printable <- decrypted[decrypted >= as.raw(0x20) & decrypted <= as.raw(0x7E)]
+    text <- rawToChar(printable, multiple = TRUE)
+    
+    if (grepl("flag\\{[a-z]+_[a-z]+\\}", text)) {
+      cat("✅ Flag found!\n")
+      cat("Key used:", key_str, "\n")
+      cat("Decrypted text:", text, "\n")
+      break
+    }
+  }, error = function(e) {
+    NULL
+  })
+}
+
+
+```
+
+
